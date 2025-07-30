@@ -2,54 +2,87 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Pagamento com Mercado Pago</title>
+  <title>Agendamento com Pagamento</title>
   <script src="https://sdk.mercadopago.com/js/v2"></script>
 </head>
 <body>
   <h2>Agendamento</h2>
-
-  <form id="payment-form">
-    <div>
-      <label for="cardNumber">Número do cartão</label>
-      <div id="form-cardNumber"></div>
-    </div>
-    <div>
-      <label for="expirationDate">Validade</label>
-      <div id="form-expirationDate"></div>
-    </div>
-    <div>
-      <label for="securityCode">CVV</label>
-      <div id="form-securityCode"></div>
-    </div>
-    <div>
-      <label for="cardholderName">Nome impresso no cartão</label>
-      <input type="text" id="form-cardholderName" />
-    </div>
-    <div>
-      <label for="issuer">Bandeira</label>
-      <div id="form-issuer"></div>
-    </div>
-    <div>
-      <label for="installments">Parcelas</label>
-      <div id="form-installments"></div>
-    </div>
-    <div>
-      <label for="identificationType">Tipo de documento</label>
-      <div id="form-identificationType"></div>
-    </div>
-    <div>
-      <label for="identificationNumber">Número do documento</label>
-      <input type="text" id="form-identificationNumber" />
-    </div>
-    <div>
-      <label for="email">Email</label>
-      <input type="email" id="form-email" />
-    </div>
-    <button type="submit" id="form-submit">Agendar e Pagar</button>
+  
+  <!-- Seu formulário de agendamento (nome, serviço, etc.) -->
+  <form id="form-agendamento">
+    <input type="text" name="nome" placeholder="Nome" required><br>
+    <input type="text" name="telefone" placeholder="Telefone" required><br>
+    <input type="text" name="servico" placeholder="Serviço" required><br>
+    <input type="date" name="data" required><br>
+    <input type="time" name="hora" required><br>
+    <button type="submit">Agendar e Pagar</button>
   </form>
 
-  <div id="result"></div>
+  <!-- Div oculta onde o pagamento será renderizado -->
+  <div id="pagamento-container" style="display: none; margin-top: 20px;">
+    <h3>Pagamento</h3>
+    <form id="form-pagamento">
+      <div id="cardPaymentBrick_container"></div>
+      <button type="submit">Finalizar Pagamento</button>
+    </form>
+  </div>
 
-  <script src="script.js"></script>
+  <script>
+    const mp = new MercadoPago('TEST-9ab9cdd3-8c01-4916-b2ef-deeb22013906');
+
+    // Quando o formulário de agendamento for enviado
+    document.getElementById('form-agendamento').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      // Oculta o formulário e mostra o container do pagamento
+      document.getElementById('form-agendamento').style.display = 'none';
+      document.getElementById('pagamento-container').style.display = 'block';
+
+      // Monta o componente de pagamento do Mercado Pago
+      const bricksBuilder = mp.bricks();
+
+      bricksBuilder.create('cardPayment', 'cardPaymentBrick_container', {
+        initialization: {
+          amount: 10.00, // valor fixo ou dinâmico
+        },
+        customization: {
+          paymentMethods: {
+            creditCard: 'all',
+            debitCard: 'all'
+          }
+        },
+        callbacks: {
+          onReady: () => {
+            console.log("Brick carregado.");
+          },
+          onSubmit: async (cardFormData) => {
+            // Envia os dados do agendamento e pagamento para o Google Apps Script
+            const formAgendamento = document.getElementById('form-agendamento');
+            const dados = {
+              nome: formAgendamento.nome.value,
+              telefone: formAgendamento.telefone.value,
+              servico: formAgendamento.servico.value,
+              data: formAgendamento.data.value,
+              hora: formAgendamento.hora.value,
+              payment: cardFormData
+            };
+
+            const response = await fetch('https://script.google.com/macros/s/AKfycbzOnRT2cyMaH649EDLvJINFvCWD5SgSxhs_cp-fEWIrj6qVjUtg-7eIop_NBeY6j0x_/exec', {
+              method: 'POST',
+              body: JSON.stringify(dados),
+              headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+            alert(result.message || 'Agendamento e pagamento processados!');
+          },
+          onError: (error) => {
+            console.error('Erro no pagamento:', error);
+            alert("Erro ao processar o pagamento.");
+          }
+        }
+      });
+    });
+  </script>
 </body>
 </html>
